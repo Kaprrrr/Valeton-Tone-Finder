@@ -241,8 +241,8 @@ class GP200MidiService {
       midiBank = 1;
       program = (bank - 1) * 4 + slot;
     } else {
-      // Banks 33-64: CC0 = 0, PC = linear position 0-127 (offset from bank 33)
-      midiBank = 0;
+      // Banks 33-64: CC0 = 2, PC = linear position 0-127 (offset from bank 33)
+      midiBank = 2;
       program = (bank - 33) * 4 + slot;
     }
 
