@@ -213,9 +213,9 @@ class GP200MidiService {
    * Select a preset slot on the GP-200
    * GP-200 uses Bank (1-64) + Slot (A=0, B=1, C=2, D=3) = 256 presets
    *
-   * Linear mapping: position = (bank - 1) * 4 + slot (0-255)
-   * Banks 1-32 (positions 0-127): PC 0-127
-   * Banks 33-64 (positions 128-255): Bank Select + PC 0-127
+   * GP-200 MIDI Implementation (from official manual):
+   * - Banks 1-32:  CC0 = 1, PC = 0-127 (position = (bank-1)*4 + slot)
+   * - Banks 33-64: CC0 = 0, PC = 0-127 (position = (bank-33)*4 + slot)
    *
    * @param bank - Bank number 1-64
    * @param slot - Slot index 0-3 (A=0, B=1, C=2, D=3)
@@ -233,17 +233,21 @@ class GP200MidiService {
       throw new Error('Slot must be 0-3 (A-D)');
     }
 
-    // Calculate linear preset position (0-255)
-    const presetPosition = (bank - 1) * 4 + slot;
+    let midiBank: number;
+    let program: number;
 
-    // Determine MIDI bank (0 for presets 0-127, 1 for presets 128-255)
-    const midiBank = presetPosition < 128 ? 0 : 1;
+    if (bank <= 32) {
+      // Banks 1-32: CC0 = 1, PC = linear position 0-127
+      midiBank = 1;
+      program = (bank - 1) * 4 + slot;
+    } else {
+      // Banks 33-64: CC0 = 0, PC = linear position 0-127 (offset from bank 33)
+      midiBank = 0;
+      program = (bank - 33) * 4 + slot;
+    }
 
-    // Program Change value (0-127)
-    const program = presetPosition % 128;
-
-    // Send Bank Select LSB (CC 32) - GP-200 may use LSB instead of MSB
-    await this.sendCC(32, midiBank);
+    // Send Bank Select MSB (CC 0)
+    await this.sendCC(0, midiBank);
     await new Promise(resolve => setTimeout(resolve, 20));
 
     // Then send Program Change
