@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Valeton Tone Finder APK</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #1a1a1a;
+            color: white;
+        }
+        h1 {
+            color: #FF6B00;
+            margin-bottom: 10px;
+        }
+        .version {
+            color: #888;
+            margin-bottom: 30px;
+        }
+        #qrcode {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .url {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+            word-break: break-all;
+            max-width: 400px;
+            text-align: center;
+        }
+        .features {
+            margin-top: 30px;
+            text-align: left;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 400px;
+        }
+        .features h3 {
+            color: #FF6B00;
+            margin-top: 0;
+        }
+        .features li {
+            margin: 8px 0;
+            color: #ccc;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <h1>Valeton Tone Finder</h1>
+    <p class="version">Build: Feb 3, 2026 - Fixed Bank Select + CC Mappings</p>
+    <div id="qrcode"></div>
+    <p class="url">https://expo.dev/accounts/kaprrrr/projects/valeton-tone-finder/builds/a7014ac1-80fc-47ea-aca6-b18ffb38972c</p>
+
+    <div class="features">
+        <h3>What's New:</h3>
+        <ul>
+            <li>Fixed Bank Select for presets 33-64</li>
+            <li>Corrected CC mappings for effect toggles</li>
+            <li>Pedal Remote screen (USB icon in header)</li>
+            <li>Preset selector (Bank 1-64 + Slot A-D)</li>
+            <li>Effect module toggles</li>
+            <li>Volume & Expression sliders</li>
+        </ul>
+    </div>
+
+    <script>
+        new QRCode(document.getElementById("qrcode"), {
+            text: "https://expo.dev/accounts/kaprrrr/projects/valeton-tone-finder/builds/a7014ac1-80fc-47ea-aca6-b18ffb38972c",
+            width: 256,
+            height: 256,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    </script>
+</body>
+</html>
