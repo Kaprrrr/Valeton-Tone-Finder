@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Valeton Tone Finder APK</title>
+    <title>GP Patch Lab APK</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -55,26 +55,23 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
-    <h1>Valeton Tone Finder</h1>
-    <p class="version">Build: Feb 3, 2026 - Fixed Bank Select + CC Mappings</p>
+    <h1>GP Patch Lab</h1>
+    <p class="version">Build: Feb 3, 2026 - Testing CC0=2 for Banks 33-64</p>
     <div id="qrcode"></div>
-    <p class="url">https://expo.dev/accounts/kaprrrr/projects/valeton-tone-finder/builds/a7014ac1-80fc-47ea-aca6-b18ffb38972c</p>
+    <p class="url">https://expo.dev/accounts/kaprrrr/projects/valeton-tone-finder/builds/7df2dfaf-a187-4a58-b11c-4802d37af9bf</p>
 
     <div class="features">
         <h3>What's New:</h3>
         <ul>
-            <li>Fixed Bank Select for presets 33-64</li>
-            <li>Corrected CC mappings for effect toggles</li>
-            <li>Pedal Remote screen (USB icon in header)</li>
-            <li>Preset selector (Bank 1-64 + Slot A-D)</li>
-            <li>Effect module toggles</li>
-            <li>Volume & Expression sliders</li>
+            <li>Banks 1-32: CC0=1, PC=0-127</li>
+            <li>Banks 33-64: CC0=2, PC=0-127</li>
+            <li>Testing if CC0=2 accesses upper banks</li>
         </ul>
     </div>
 
     <script>
         new QRCode(document.getElementById("qrcode"), {
-            text: "https://expo.dev/accounts/kaprrrr/projects/valeton-tone-finder/builds/a7014ac1-80fc-47ea-aca6-b18ffb38972c",
+            text: "https://expo.dev/accounts/kaprrrr/projects/valeton-tone-finder/builds/7df2dfaf-a187-4a58-b11c-4802d37af9bf",
             width: 256,
             height: 256,
             colorDark: "#000000",

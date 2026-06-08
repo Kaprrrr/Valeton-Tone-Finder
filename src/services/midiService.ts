@@ -18,31 +18,6 @@ const loadModule = async () => {
 // Load module on init
 loadModule();
 
-// GP-200 MIDI CC Mappings - corrected based on real device testing
-export const GP200_CC = {
-  // Volume and Expression
-  VOLUME: 7,
-  EXPRESSION: 11,
-
-  // Effect toggles (0-63 = off, 64-127 = on)
-  // Order: PRE, DST, AMP, NR, CAB, EQ, MOD, DLY, REV, WAH
-  PRE_SWITCH: 48,
-  DST_SWITCH: 49,
-  AMP_SWITCH: 50,
-  NR_SWITCH: 51,
-  CAB_SWITCH: 52,
-  EQ_SWITCH: 53,
-  MOD_SWITCH: 54,
-  DLY_SWITCH: 55,
-  REV_SWITCH: 56,
-  WAH_SWITCH: 57,
-
-  // Tempo
-  TEMPO_TAP: 70,
-  TEMPO_VALUE_MSB: 74,
-  TEMPO_VALUE_LSB: 75,
-} as const;
-
 export interface MidiDevice {
   id: number;
   name: string;
@@ -71,7 +46,6 @@ class GP200MidiService {
   };
 
   private listeners: Set<ConnectionListener> = new Set();
-  private midiChannel = 0; // GP-200 default MIDI channel (0-indexed, so channel 1)
   private eventSubscriptions: (() => void)[] = [];
 
   constructor() {
@@ -213,9 +187,9 @@ class GP200MidiService {
    * Select a preset slot on the GP-200
    * GP-200 uses Bank (1-64) + Slot (A=0, B=1, C=2, D=3) = 256 presets
    *
-   * GP-200 MIDI Implementation (from official manual):
-   * - Banks 1-32:  CC0 = 1, PC = 0-127 (position = (bank-1)*4 + slot)
-   * - Banks 33-64: CC0 = 0, PC = 0-127 (position = (bank-33)*4 + slot)
+   * GP-200 uses SysEx for preset selection (not standard Bank Select + PC):
+   * F0 21 25 7E 47 50 2D 32 12 08 00 00 00 00 08 01 00 00 04 00 00 00 00 00 00 [HI] [LO] 00 00 F7
+   * Where: HI = floor(presetNum / 16), LO = presetNum % 16
    *
    * @param bank - Bank number 1-64
    * @param slot - Slot index 0-3 (A=0, B=1, C=2, D=3)
@@ -233,175 +207,43 @@ class GP200MidiService {
       throw new Error('Slot must be 0-3 (A-D)');
     }
 
-    let midiBank: number;
-    let program: number;
+    // Calculate preset number (0-255)
+    const presetNumber = (bank - 1) * 4 + slot;
 
-    if (bank <= 32) {
-      // Banks 1-32: CC0 = 1, PC = linear position 0-127
-      midiBank = 1;
-      program = (bank - 1) * 4 + slot;
-    } else {
-      // Banks 33-64: CC0 = 2, PC = linear position 0-127 (offset from bank 33)
-      midiBank = 2;
-      program = (bank - 33) * 4 + slot;
-    }
+    // Encode as nibbles for SysEx
+    const hi = Math.floor(presetNumber / 16);
+    const lo = presetNumber % 16;
 
-    // Send Bank Select MSB (CC 0)
-    await this.sendCC(0, midiBank);
-    await new Promise(resolve => setTimeout(resolve, 20));
+    // GP-200 SysEx preset select message (30 bytes)
+    const sysex = [
+      0xF0,       // SysEx start
+      0x21, 0x25, // Manufacturer ID (Proel/SIEL)
+      0x7E,       // Device ID
+      0x47, 0x50, 0x2D, 0x32, // "GP-2" in ASCII
+      0x12,       // Command type
+      0x08,       // Data length indicator
+      0x00, 0x00, 0x00, 0x00,
+      0x08, 0x01, 0x00, 0x00,
+      0x04, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00,
+      hi,         // Preset number high nibble
+      lo,         // Preset number low nibble
+      0x00, 0x00,
+      0xF7        // SysEx end
+    ];
 
-    // Then send Program Change
-    await ExpoUsbMidi.sendProgramChange(this.midiChannel, 0, program);
+    await ExpoUsbMidi.sendMidiMessage(sysex);
   }
 
   /**
-   * Send a Control Change message
+   * Send a raw SysEx message
    */
-  async sendCC(controller: number, value: number): Promise<void> {
+  async sendSysEx(data: number[]): Promise<void> {
     if (!ExpoUsbMidi || !ExpoUsbMidi.isConnected()) {
       throw new Error('Not connected to MIDI device');
     }
 
-    await ExpoUsbMidi.sendControlChange(this.midiChannel, controller, value);
-  }
-
-  /**
-   * Toggle an effect module on/off
-   * GP-200 uses 0-63 for off, 64-127 for on
-   */
-  async toggleModule(
-    module: 'PRE' | 'WAH' | 'DST' | 'AMP' | 'CAB' | 'NR' | 'EQ' | 'MOD' | 'DLY' | 'REV',
-    enabled: boolean
-  ): Promise<void> {
-    const ccMap: Record<string, number> = {
-      PRE: GP200_CC.PRE_SWITCH,
-      WAH: GP200_CC.WAH_SWITCH,
-      DST: GP200_CC.DST_SWITCH,
-      AMP: GP200_CC.AMP_SWITCH,
-      CAB: GP200_CC.CAB_SWITCH,
-      NR: GP200_CC.NR_SWITCH,
-      EQ: GP200_CC.EQ_SWITCH,
-      MOD: GP200_CC.MOD_SWITCH,
-      DLY: GP200_CC.DLY_SWITCH,
-      REV: GP200_CC.REV_SWITCH,
-    };
-
-    const cc = ccMap[module];
-    if (cc !== undefined) {
-      await this.sendCC(cc, enabled ? 127 : 0);
-    }
-  }
-
-  /**
-   * Set volume level (0-100 scaled to 0-127)
-   */
-  async setVolume(value: number): Promise<void> {
-    const midiValue = Math.round((value / 100) * 127);
-    await this.sendCC(GP200_CC.VOLUME, Math.min(127, Math.max(0, midiValue)));
-  }
-
-  /**
-   * Set expression pedal position (0-100 scaled to 0-127)
-   */
-  async setExpression(value: number): Promise<void> {
-    const midiValue = Math.round((value / 100) * 127);
-    await this.sendCC(GP200_CC.EXPRESSION, Math.min(127, Math.max(0, midiValue)));
-  }
-
-  /**
-   * Send preset module states to the GP-200
-   * This toggles each module on/off based on the preset configuration
-   * Note: This doesn't change the actual effect parameters, just on/off states
-   */
-  async sendPresetModuleStates(preset: GP200Preset): Promise<void> {
-    if (!ExpoUsbMidi || !ExpoUsbMidi.isConnected()) {
-      throw new Error('Not connected to MIDI device');
-    }
-
-    const { blocks } = preset;
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-    // Send module states with small delays between messages
-    if (blocks.pre !== undefined) {
-      await this.toggleModule('PRE', blocks.pre.enabled);
-      await delay(15);
-    }
-
-    if (blocks.wah !== undefined) {
-      await this.toggleModule('WAH', blocks.wah.enabled);
-      await delay(15);
-    }
-
-    if (blocks.dst !== undefined) {
-      await this.toggleModule('DST', blocks.dst.enabled);
-      await delay(15);
-    }
-
-    // AMP and CAB are always present
-    await this.toggleModule('AMP', blocks.amp.enabled);
-    await delay(15);
-
-    await this.toggleModule('CAB', blocks.cab.enabled);
-    await delay(15);
-
-    if (blocks.nr !== undefined) {
-      await this.toggleModule('NR', blocks.nr.enabled);
-      await delay(15);
-    }
-
-    if (blocks.eq !== undefined) {
-      await this.toggleModule('EQ', blocks.eq.enabled);
-      await delay(15);
-    }
-
-    if (blocks.mod !== undefined) {
-      await this.toggleModule('MOD', blocks.mod.enabled);
-      await delay(15);
-    }
-
-    if (blocks.dly !== undefined) {
-      await this.toggleModule('DLY', blocks.dly.enabled);
-      await delay(15);
-    }
-
-    if (blocks.rev !== undefined) {
-      await this.toggleModule('REV', blocks.rev.enabled);
-      await delay(15);
-    }
-  }
-
-  /**
-   * Send preset to a specific slot on the GP-200
-   * This selects the preset slot and then applies module states
-   *
-   * @param preset - The preset to send
-   * @param bank - Bank number 1-64
-   * @param slot - Slot index 0-3 (A=0, B=1, C=2, D=3)
-   */
-  async sendPresetToDevice(preset: GP200Preset, bank: number, slot: number = 0): Promise<void> {
-    if (!ExpoUsbMidi || !ExpoUsbMidi.isConnected()) {
-      throw new Error('Not connected to MIDI device');
-    }
-
-    // First select the target preset slot
-    await this.selectPreset(bank, slot);
-
-    // Wait for the preset to load
-    await new Promise(resolve => setTimeout(resolve, 150));
-
-    // Then send the module states
-    await this.sendPresetModuleStates(preset);
-  }
-
-  /**
-   * Set MIDI channel (0-15, where 0 = channel 1)
-   */
-  setMidiChannel(channel: number): void {
-    this.midiChannel = Math.max(0, Math.min(15, channel));
-  }
-
-  getMidiChannel(): number {
-    return this.midiChannel;
+    await ExpoUsbMidi.sendMidiMessage(data);
   }
 
   cleanup() {

@@ -1,0 +1,21 @@
+{
+  "name": "gp-patch-lab-backend",
+  "version": "1.0.0",
+  "description": "Vercel serverless backend for GP Patch Lab",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "vercel build",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@supabase/supabase-js": "^2.93.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@vercel/node": "^3.0.0",
+    "typescript": "^5.0.0",
+    "vercel": "^37.0.0"
+  }
+}
